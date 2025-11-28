@@ -1,0 +1,77 @@
+name: Update Changed Submodule
+
+on:
+  repository_dispatch:
+    types: [update-submodule]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-submodule:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main repo with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.PAT }}
+          fetch-depth: 0
+
+      - name: Update only the triggered submodule
+        run: |
+          set -e
+
+          SUBMODULE="${{ github.event.client_payload.submodule }}"
+          echo "Submodule to update: $SUBMODULE"
+
+          if [ -d "$SUBMODULE" ]; then
+            echo ">>> Submodule remote URLs"
+            git -C "$SUBMODULE" remote -v
+
+            DEFAULT_BRANCH=$(git -C "$SUBMODULE" symbolic-ref --short refs/remotes/origin/HEAD | sed 's|^origin/||')
+            echo ">>> Detected default branch for $SUBMODULE: $DEFAULT_BRANCH"
+
+            echo ">>> Fetching origin/$DEFAULT_BRANCH"
+            git -C "$SUBMODULE" fetch origin "$DEFAULT_BRANCH" --depth=1
+
+            echo ">>> Checking out origin/$DEFAULT_BRANCH"
+            git -C "$SUBMODULE" checkout "origin/$DEFAULT_BRANCH"
+
+            echo ">>> Submodule HEAD after checkout:"
+            git -C "$SUBMODULE" rev-parse HEAD
+
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add "$SUBMODULE"
+          else
+            echo "Directory $SUBMODULE not found, skipping submodule update..."
+            exit 0
+          fi
+
+      - name: Create Pull Request      
+        id: cpr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.PAT }}
+          commit-message: "chore: update submodule ${{ github.event.client_payload.submodule }}"
+          branch: update-submodule-${{ github.event.client_payload.submodule }}
+          title: "chore: update submodule ${{ github.event.client_payload.submodule }}"
+          body: "This PR updates the submodule reference to the latest HEAD."
+
+      - name: Auto-approve PR
+        if: ${{ steps.cpr.outputs.pull-request-operation == 'created' }}
+        uses: hmarr/auto-approve-action@v3
+        with:
+          github-token: ${{ secrets.PAT }}
+          pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
+
+      - name: Enable auto-merge
+        if: ${{ steps.cpr.outputs.pull-request-operation == 'created' }}
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.PAT }}
+          pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
+          merge-method: squash
