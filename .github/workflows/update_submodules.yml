@@ -51,11 +51,11 @@ jobs:
             exit 0
           fi
 
-      - name: Create Pull Request      
+      - name: Create Pull Request
         id: cpr
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.PAT }} 
           commit-message: "chore: update submodule ${{ github.event.client_payload.submodule }}"
           branch: update-submodule-${{ github.event.client_payload.submodule }}
           title: "chore: update submodule ${{ github.event.client_payload.submodule }}"
@@ -70,8 +70,10 @@ jobs:
 
       - name: Enable auto-merge
         if: ${{ steps.cpr.outputs.pull-request-operation == 'created' }}
-        uses: peter-evans/enable-pull-request-automerge@v3
-        with:
-          token: ${{ secrets.PAT }}
-          pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
-          merge-method: squash
+        run: |
+          echo "Merging PR #${{ steps.cpr.outputs.pull-request-number }}"
+          gh pr merge ${{ steps.cpr.outputs.pull-request-number }} \
+            --squash \
+            --delete-branch
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
