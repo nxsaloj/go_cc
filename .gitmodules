@@ -1,0 +1,3 @@
+[submodule "ccwc"]
+	path = ccwc
+	url = https://github.com/nxsaloj/cc_wc_tool
