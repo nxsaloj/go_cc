@@ -55,7 +55,7 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.PAT }} 
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: update submodule ${{ github.event.client_payload.submodule }}"
           branch: update-submodule-${{ github.event.client_payload.submodule }}
           title: "chore: update submodule ${{ github.event.client_payload.submodule }}"
